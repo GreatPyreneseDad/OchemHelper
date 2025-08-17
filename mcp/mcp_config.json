@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ochem-helper": {
+      "command": "python",
+      "args": ["-m", "mcp.server.ochem_mcp"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  }
+}

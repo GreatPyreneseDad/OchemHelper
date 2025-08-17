@@ -4,12 +4,12 @@ An advanced neural network system for molecular discovery and organic chemistry 
 
 ## Features
 
-- 🔬 **Molecular Generation**: Design novel molecules with desired properties
+- 🔬 **Molecular Generation**: Design novel molecules with desired properties using VAE
 - 📊 **Property Prediction**: Predict chemical and biological properties
-- 🧬 **Retrosynthesis**: Plan synthetic routes automatically
-- ⚛️ **Quantum Chemistry**: Interface with QM calculations
-- 🎯 **Drug Discovery**: Optimize lead compounds
+- 🎯 **Molecule Optimization**: Optimize molecules for specific objectives
+- 🧬 **Graph Neural Networks**: Molecular representation learning
 - 📈 **ADMET Prediction**: Assess drug-like properties
+- 🚀 **REST API**: Production-ready API for all functionalities
 
 ## Quick Start
 
@@ -24,37 +24,97 @@ cd ochem-helper
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install package
+# Install dependencies
+pip install -r requirements.txt
 pip install -e .
 ```
 
-### Basic Usage
-
-```python
-from ochem_helper import MolecularGraph, MoleculeGenerator, PropertyPredictor
-
-# Initialize models
-generator = MoleculeGenerator.from_pretrained("vae-chembl")
-predictor = PropertyPredictor.from_pretrained("gnn-admet")
-
-# Generate molecules
-molecules = generator.generate(
-    n_molecules=100,
-    target_properties={"logP": 2.5, "MW": 350}
-)
-
-# Predict properties
-properties = predictor.predict(molecules)
-```
-
-### Training Custom Models
+### Download & Prepare Data
 
 ```bash
-# Train property prediction model
-ochem-train --config configs/models/gnn_config.yaml
+# Download all datasets (ChEMBL, ZINC, PubChem, QM9)
+python scripts/download_data.py --all
 
-# Train generative model
-ochem-train --config configs/models/vae_config.yaml --data chembl
+# Or download specific dataset
+python scripts/download_data.py --dataset chembl
+```
+
+### Train the VAE Model
+
+```bash
+# Train on combined dataset
+python scripts/train_vae.py \
+    --data data/processed/combined_training.csv \
+    --epochs 100 \
+    --batch-size 128 \
+    --latent-dim 128 \
+    --hidden-dim 256
+
+# Monitor training with tensorboard or wandb
+wandb login  # First time only
+python scripts/train_vae.py --data data/processed/combined_training.csv --wandb-project molecular-vae
+```
+
+### Generate Molecules
+
+```bash
+# Generate random molecules
+python scripts/generate_molecules.py \
+    --checkpoint models/checkpoints/best_model.pt \
+    --mode random \
+    --n-molecules 100 \
+    --output generated.csv \
+    --visualize
+
+# Generate molecules similar to a reference
+python scripts/generate_molecules.py \
+    --checkpoint models/checkpoints/best_model.pt \
+    --mode similar \
+    --reference "CC(=O)OC1=CC=CC=C1C(=O)O" \
+    --n-molecules 50
+
+# Generate with target properties
+python scripts/generate_molecules.py \
+    --checkpoint models/checkpoints/best_model.pt \
+    --mode properties \
+    --properties '{"MW": 350, "logP": 2.5}' \
+    --n-molecules 100
+```
+
+### Basic Usage in Python
+
+```python
+from src.models.generative.smiles_vae import MolecularVAE, SMILESTokenizer
+from src.core.molecular_graph import MolecularGraph
+import torch
+
+# Load trained model
+checkpoint = torch.load('models/checkpoints/best_model.pt')
+config = checkpoint['model_config']
+
+model = MolecularVAE(
+    vocab_size=config['vocab_size'],
+    hidden_dim=config['hidden_dim'],
+    latent_dim=config['latent_dim'],
+    max_length=config['max_length']
+)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# Generate molecules
+molecules = model.generate(n_samples=100)
+print(f"Generated {len(molecules)} valid molecules")
+
+# Molecular interpolation
+aspirin = "CC(=O)OC1=CC=CC=C1C(=O)O"
+ibuprofen = "CC(C)CC1=CC=C(C=C1)C(C)C"
+interpolated = model.interpolate(aspirin, ibuprofen, n_steps=10)
+
+# Convert to molecular graphs
+for smiles in molecules[:5]:
+    mol_graph = MolecularGraph.from_smiles(smiles)
+    graph_data = mol_graph.to_graph()
+    print(f"Graph with {mol_graph.num_atoms} atoms, {mol_graph.num_bonds} bonds")
 ```
 
 ## Documentation

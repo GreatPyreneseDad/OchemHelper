@@ -1,0 +1,38 @@
+{
+  "name": "ochem-helper-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for OChem Helper - AI-powered organic chemistry assistant",
+  "type": "module",
+  "bin": {
+    "ochem-helper-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "chemistry",
+    "organic-chemistry",
+    "drug-discovery",
+    "ai",
+    "molecular-design"
+  ],
+  "author": "OChem Helper Contributors",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GreatPyreneseDad/OchemHelper"
+  }
+}
