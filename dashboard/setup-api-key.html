@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OChem Helper - Setup API Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #151932 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .setup-container {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #63b3ed 0%, #4c1d95 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .info {
+            background: rgba(99, 179, 237, 0.1);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            color: #94a3b8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            width: 100%;
+            background: rgba(10, 14, 39, 0.7);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #e0e6ed;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(76, 29, 149, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(99, 179, 237, 0.2);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(99, 179, 237, 0.3);
+        }
+
+        .success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        a {
+            color: #63b3ed;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .api-key-display {
+            font-family: monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <h1>🧪 OChem Helper API Setup</h1>
+        
+        <div class="info">
+            To use the AI Chemistry Assistant, you need a Claude API key.
+            Get one from <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a>
+        </div>
+
+        <div id="success-message" class="success">
+            API key saved successfully! Redirecting to dashboard...
+        </div>
+
+        <div id="error-message" class="error">
+            Please enter a valid API key
+        </div>
+
+        <form id="api-key-form">
+            <div class="form-group">
+                <label for="api-key">Claude API Key</label>
+                <input 
+                    type="password" 
+                    id="api-key" 
+                    placeholder="sk-ant-api03-..." 
+                    required
+                />
+            </div>
+
+            <button type="submit" class="btn">Save API Key</button>
+            <button type="button" class="btn btn-secondary" onclick="skipSetup()">
+                Skip (Use Demo Mode)
+            </button>
+        </form>
+
+        <div style="text-align: center; margin-top: 1rem; font-size: 0.875rem; color: #64748b;">
+            Your API key will be stored locally in your browser
+        </div>
+    </div>
+
+    <script>
+        // Check if API key is already set
+        const existingKey = localStorage.getItem('claude_api_key');
+        if (existingKey) {
+            document.getElementById('api-key').value = existingKey;
+        }
+
+        // Handle form submission
+        document.getElementById('api-key-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const apiKey = document.getElementById('api-key').value.trim();
+            
+            if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+                showError('Please enter a valid Claude API key (starts with sk-ant-)');
+                return;
+            }
+
+            // Save to localStorage
+            localStorage.setItem('claude_api_key', apiKey);
+            
+            // Also save to config if available
+            if (window.updateConfig) {
+                window.updateConfig('claude.apiKey', apiKey);
+                window.saveConfig();
+            }
+
+            showSuccess();
+            
+            // Redirect to dashboard
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1500);
+        });
+
+        function showSuccess() {
+            document.getElementById('success-message').style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        function skipSetup() {
+            if (confirm('Without an API key, the AI assistant will have limited functionality. Continue anyway?')) {
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Show the stored key value for debugging (remove in production)
+        document.getElementById('api-key').addEventListener('focus', function() {
+            this.type = 'text';
+        });
+
+        document.getElementById('api-key').addEventListener('blur', function() {
+            this.type = 'password';
+        });
+    </script>
+</body>
+</html>
