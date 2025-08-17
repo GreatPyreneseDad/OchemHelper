@@ -1,0 +1,26 @@
+# Minimal requirements for CI/CD
+# These are compatible with GitHub Actions
+
+# Core dependencies with version constraints
+numpy<2.0  # Many packages don't support numpy 2.x yet
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Chemistry - using rdkit from conda instead
+# rdkit is installed via conda in CI
+
+# API and web
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# For MCP
+aiohttp>=3.8.0
+requests>=2.31.0
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.65.0
+
+# Avoid heavy ML dependencies in CI
+# torch, transformers, xgboost, etc. are optional

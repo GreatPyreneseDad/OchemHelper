@@ -1,0 +1,42 @@
+# Minimal Dockerfile for OChem Helper
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only necessary files first (for better caching)
+COPY requirements-ci.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir numpy<2.0
+RUN pip install --no-cache-dir -r requirements-ci.txt
+RUN pip install --no-cache-dir rdkit
+
+# Copy source code
+COPY src/ ./src/
+COPY dashboard/ ./dashboard/
+COPY mcp/ ./mcp/
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV USE_MOCK_VAE=1
+
+# Expose ports
+EXPOSE 8000 8001 8080
+
+# Create a simple startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting OChem Helper services..."\n\
+python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 &\n\
+cd mcp/server && python simple_mcp_bridge.py --port 8001 &\n\
+cd /app/dashboard && python -m http.server 8080 &\n\
+echo "Services started! Dashboard at http://localhost:8080"\n\
+wait' > /app/start.sh && chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]
