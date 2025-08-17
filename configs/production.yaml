@@ -1,0 +1,96 @@
+# Production configuration for OChem Helper
+# Inherits from default.yaml and overrides specific values
+
+# API configurations
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 8
+  reload: false
+  cors_origins:
+    - "https://ochem-helper.com"
+    - "https://api.ochem-helper.com"
+  rate_limit: 1000
+  rate_limit_period: 60
+  
+# Training configurations
+training:
+  batch_size: 256
+  checkpoint_dir: "/data/checkpoints/"
+  log_dir: "/data/logs/"
+  
+# Data configurations
+data:
+  raw_dir: "/data/raw/"
+  processed_dir: "/data/processed/"
+  cache_dir: "/data/cache/"
+  max_molecules: 10000000
+  
+# MCP configurations
+mcp:
+  max_concurrent_requests: 50
+  timeout: 60
+  cache_ttl: 7200
+  
+# Logging configurations
+logging:
+  level: "WARNING"
+  file: "/var/log/ochem_helper/app.log"
+  max_bytes: 104857600  # 100MB
+  backup_count: 10
+  
+# Security configurations
+security:
+  enable_auth: true
+  jwt_secret: "${JWT_SECRET}"  # From environment variable
+  jwt_expiration: 86400  # 24 hours
+  
+# Resource limits
+resources:
+  max_memory: "32GB"
+  max_cpu_percent: 90
+  gpu_memory_fraction: 0.95
+  
+# External services
+external:
+  pubchem:
+    timeout: 60
+    retry_attempts: 5
+  chembl:
+    timeout: 60
+    
+# Feature flags
+features:
+  enable_gpu: true
+  enable_multiprocessing: true
+  enable_caching: true
+  enable_monitoring: true
+  enable_profiling: false
+  
+# Database configurations
+database:
+  url: "${DATABASE_URL}"  # From environment variable
+  pool_size: 20
+  max_overflow: 40
+  pool_timeout: 30
+  pool_recycle: 3600
+  
+# Redis configurations
+redis:
+  url: "${REDIS_URL}"  # From environment variable
+  max_connections: 50
+  decode_responses: true
+  
+# Monitoring configurations
+monitoring:
+  enable_metrics: true
+  metrics_port: 9090
+  enable_tracing: true
+  tracing_endpoint: "${JAEGER_ENDPOINT}"
+  
+# Backup configurations
+backup:
+  enable: true
+  schedule: "0 2 * * *"  # 2 AM daily
+  retention_days: 30
+  s3_bucket: "${BACKUP_S3_BUCKET}"

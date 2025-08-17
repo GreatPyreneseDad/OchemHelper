@@ -1,0 +1,72 @@
+# Test configuration for OChem Helper
+# Used for running tests
+
+# Model configurations
+models:
+  vae:
+    vocab_size: 50  # Smaller for testing
+    embedding_dim: 32
+    hidden_dim: 64
+    latent_dim: 16
+    num_layers: 1
+    max_length: 50
+    
+# Training configurations
+training:
+  batch_size: 8
+  epochs: 2
+  checkpoint_dir: "test_checkpoints/"
+  log_dir: "test_logs/"
+  
+# Data configurations
+data:
+  raw_dir: "tests/data/raw/"
+  processed_dir: "tests/data/processed/"
+  cache_dir: "tests/data/cache/"
+  max_molecules: 100
+  
+# API configurations
+api:
+  host: "127.0.0.1"
+  port: 8001  # Different port for tests
+  workers: 1
+  
+# MCP configurations
+mcp:
+  max_concurrent_requests: 2
+  timeout: 5
+  cache_results: false
+  
+# Chemistry configurations
+chemistry:
+  max_atoms: 50
+  
+# Logging configurations
+logging:
+  level: "ERROR"  # Only log errors in tests
+  file: "logs/test.log"
+  
+# Security configurations
+security:
+  enable_auth: false
+  jwt_secret: "test-secret"
+  
+# Resource limits
+resources:
+  max_memory: "1GB"
+  max_cpu_percent: 25
+  
+# Feature flags
+features:
+  enable_gpu: false
+  enable_multiprocessing: false
+  enable_caching: false
+  enable_monitoring: false
+  enable_profiling: false
+  
+# Test-specific configurations
+test:
+  use_mock_models: true
+  use_test_data: true
+  fast_tests: true
+  random_seed: 42

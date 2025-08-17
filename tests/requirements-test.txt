@@ -1,0 +1,38 @@
+# Test requirements for OChem Helper
+
+# Testing frameworks
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+unittest-xml-reporting>=3.2.0
+
+# Coverage
+coverage>=7.0.0
+
+# Mocking
+mock>=5.0.0
+responses>=0.22.0
+
+# API testing
+httpx>=0.23.0
+requests-mock>=1.9.0
+
+# Test data generation
+faker>=15.0.0
+factory-boy>=3.2.0
+
+# Performance testing
+pytest-benchmark>=4.0.0
+
+# Type checking
+mypy>=1.0.0
+types-requests
+
+# Code quality
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0
+
+# Documentation testing
+doctest-plus>=0.10.0

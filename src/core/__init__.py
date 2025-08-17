@@ -179,6 +179,8 @@ def canonicalize_smiles(smiles: str) -> str:
     mol = smiles_to_mol(smiles)
     return mol_to_smiles(mol) if mol else smiles
 
+from .config import Config, ConfigLoader, load_config, get_config, update_config
+
 __all__ = [
     "MolecularGraph",
     "MolecularDescriptors",
@@ -191,5 +193,10 @@ __all__ = [
     "create_molecular_hyperprocessor",
     "smiles_to_mol",
     "mol_to_smiles",
-    "canonicalize_smiles"
+    "canonicalize_smiles",
+    "Config",
+    "ConfigLoader",
+    "load_config",
+    "get_config",
+    "update_config"
 ]

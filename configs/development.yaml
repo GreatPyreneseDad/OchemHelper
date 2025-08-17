@@ -1,0 +1,72 @@
+# Development configuration for OChem Helper
+# Inherits from default.yaml and overrides specific values
+
+# API configurations
+api:
+  host: "127.0.0.1"
+  port: 8000
+  workers: 1
+  reload: true
+  cors_origins:
+    - "*"  # Allow all origins in development
+  rate_limit: 10000
+  rate_limit_period: 60
+  
+# Training configurations
+training:
+  batch_size: 32
+  epochs: 10
+  checkpoint_dir: "dev_checkpoints/"
+  log_dir: "dev_logs/"
+  
+# Data configurations
+data:
+  max_molecules: 10000  # Use smaller dataset for dev
+  
+# MCP configurations
+mcp:
+  max_concurrent_requests: 5
+  timeout: 300  # Longer timeout for debugging
+  cache_results: false  # Disable caching in dev
+  
+# Chemistry configurations
+chemistry:
+  max_atoms: 100  # Smaller molecules for faster dev
+  
+# Logging configurations
+logging:
+  level: "DEBUG"
+  file: "logs/dev.log"
+  
+# Security configurations
+security:
+  enable_auth: false
+  jwt_secret: "dev-secret-key"
+  
+# Resource limits
+resources:
+  max_memory: "4GB"
+  max_cpu_percent: 50
+  gpu_memory_fraction: 0.5
+  
+# Feature flags
+features:
+  enable_gpu: false  # Use CPU in dev
+  enable_multiprocessing: false
+  enable_caching: false
+  enable_monitoring: false
+  enable_profiling: true
+  
+# Development tools
+dev_tools:
+  enable_debug_mode: true
+  enable_hot_reload: true
+  enable_swagger_ui: true
+  enable_graphql_playground: true
+  mock_external_services: true
+  
+# Testing configurations
+testing:
+  test_database_url: "sqlite:///test.db"
+  test_data_dir: "tests/data/"
+  coverage_threshold: 80

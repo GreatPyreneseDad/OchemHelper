@@ -1,0 +1,151 @@
+# Default configuration for OChem Helper
+
+# Model configurations
+models:
+  vae:
+    vocab_size: 100
+    embedding_dim: 128
+    hidden_dim: 256
+    latent_dim: 64
+    num_layers: 2
+    max_length: 100
+    beta: 1.0
+    dropout: 0.1
+    
+  predictor:
+    use_ensemble: true
+    models:
+      - xgboost
+      - lightgbm
+      - random_forest
+      - neural_net
+    uncertainty_estimation: true
+    
+  generator:
+    use_vae: true
+    use_reservoir: true
+    temperature: 1.0
+    top_k: 50
+    top_p: 0.95
+
+# Training configurations
+training:
+  batch_size: 128
+  learning_rate: 0.001
+  epochs: 100
+  early_stopping: true
+  patience: 10
+  validation_split: 0.1
+  checkpoint_dir: "checkpoints/"
+  log_dir: "logs/"
+  
+# Data configurations
+data:
+  raw_dir: "data/raw/"
+  processed_dir: "data/processed/"
+  cache_dir: "data/cache/"
+  max_molecules: 1000000
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  
+# API configurations
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: false
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  rate_limit: 100
+  rate_limit_period: 60
+  
+# MCP configurations
+mcp:
+  server_name: "ochem-helper"
+  version: "1.0.0"
+  max_concurrent_requests: 10
+  timeout: 30
+  cache_results: true
+  cache_ttl: 3600
+  
+# Chemistry configurations
+chemistry:
+  max_atoms: 200
+  allowed_elements:
+    - C
+    - N
+    - O
+    - S
+    - P
+    - F
+    - Cl
+    - Br
+    - I
+    - H
+  drug_likeness:
+    lipinski:
+      mw_max: 500
+      logp_max: 5
+      hbd_max: 5
+      hba_max: 10
+    veber:
+      rotatable_bonds_max: 10
+      tpsa_max: 140
+    qed_threshold: 0.5
+    
+# Optimization configurations
+optimization:
+  population_size: 100
+  generations: 50
+  mutation_rate: 0.1
+  crossover_rate: 0.8
+  selection_method: "tournament"
+  elite_size: 10
+  
+# Synthesis configurations
+synthesis:
+  max_steps: 5
+  min_yield: 0.3
+  available_reactions: 100
+  template_matching_threshold: 0.5
+  
+# Logging configurations
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/ochem_helper.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+  
+# Security configurations
+security:
+  enable_auth: false
+  jwt_secret: "change-this-secret-key"
+  jwt_algorithm: "HS256"
+  jwt_expiration: 3600
+  
+# Resource limits
+resources:
+  max_memory: "8GB"
+  max_cpu_percent: 80
+  gpu_memory_fraction: 0.8
+  
+# External services
+external:
+  pubchem:
+    api_url: "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
+    timeout: 30
+    retry_attempts: 3
+  chembl:
+    api_url: "https://www.ebi.ac.uk/chembl/api/data"
+    timeout: 30
+    
+# Feature flags
+features:
+  enable_gpu: true
+  enable_multiprocessing: true
+  enable_caching: true
+  enable_monitoring: false
+  enable_profiling: false
