@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OChem Helper - Advanced Molecular Discovery Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.8.0/3Dmol-min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #151932 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(99, 179, 237, 0.3);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #63b3ed 0%, #4c1d95 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(99, 179, 237, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(99, 179, 237, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.active {
+            background: #10b981;
+        }
+
+        .status-dot.processing {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .control-group input,
+        .control-group select,
+        .control-group textarea {
+            background: rgba(10, 14, 39, 0.7);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #e0e6ed;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus,
+        .control-group textarea:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(76, 29, 149, 0.3);
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            padding: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(99, 179, 237, 0.2);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e0e6ed;
+        }
+
+        .card-badge {
+            background: rgba(99, 179, 237, 0.2);
+            color: #63b3ed;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, rgba(99, 179, 237, 0.1) 0%, rgba(76, 29, 149, 0.1) 100%);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .metric-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(99, 179, 237, 0.2);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #63b3ed 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-change {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .metric-change.positive {
+            color: #10b981;
+        }
+
+        .metric-change.negative {
+            color: #ef4444;
+        }
+
+        /* 3D Molecule Viewer */
+        .molecule-viewer {
+            height: 400px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(10, 14, 39, 0.7);
+            position: relative;
+        }
+
+        .viewer-controls {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 100;
+        }
+
+        .viewer-btn {
+            background: rgba(99, 179, 237, 0.2);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            color: #e0e6ed;
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .viewer-btn:hover {
+            background: rgba(99, 179, 237, 0.3);
+        }
+
+        /* Activity Log */
+        .activity-log {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: start;
+            gap: 1rem;
+            padding: 0.75rem;
+            border-left: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .activity-item:hover {
+            background: rgba(99, 179, 237, 0.05);
+            border-left-color: #63b3ed;
+        }
+
+        .activity-time {
+            font-size: 0.75rem;
+            color: #64748b;
+            min-width: 60px;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .activity-description {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        /* Charts */
+        .chart-container {
+            height: 350px;
+            position: relative;
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(99, 179, 237, 0.2);
+            border-top-color: #63b3ed;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>🧪 OChem Helper</h1>
+                <span style="color: #64748b;">Advanced Molecular Discovery</span>
+            </div>
+            <div class="status-indicators">
+                <div class="status-item">
+                    <div class="status-dot active"></div>
+                    <span>VAE Model</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot active"></div>
+                    <span>Ensemble Predictor</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot processing"></div>
+                    <span>MCP Server</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value" id="moleculesGenerated">1,247</div>
+                <div class="metric-label">Molecules Generated</div>
+                <div class="metric-change positive">↑ 12.4% today</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="avgQED">0.832</div>
+                <div class="metric-label">Avg QED Score</div>
+                <div class="metric-change positive">↑ 3.2% improved</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="validityRate">95.8%</div>
+                <div class="metric-label">Validity Rate</div>
+                <div class="metric-change positive">↑ 1.1% increase</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="synthesisScore">8.2/10</div>
+                <div class="metric-label">Synthesis Score</div>
+                <div class="metric-change negative">↓ 0.3 points</div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-grid">
+                <div class="control-group">
+                    <label>Input SMILES</label>
+                    <input type="text" id="smilesInput" placeholder="CC(=O)OC1=CC=CC=C1C(=O)O" />
+                </div>
+                <div class="control-group">
+                    <label>Generation Mode</label>
+                    <select id="modeSelect">
+                        <option value="random">Random Generation</option>
+                        <option value="similar">Similar Molecules</option>
+                        <option value="optimize">Lead Optimization</option>
+                        <option value="interpolate">Interpolation</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Target Properties</label>
+                    <select id="targetSelect">
+                        <option value="drug-like">Drug-like</option>
+                        <option value="high-qed">High QED</option>
+                        <option value="low-mw">Low MW</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Number of Molecules</label>
+                    <input type="number" id="numMolecules" value="10" min="1" max="100" />
+                </div>
+                <div class="control-group" style="align-self: flex-end;">
+                    <button class="btn-primary" onclick="generateMolecules()">Generate Molecules</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- 3D Molecule Viewer -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">3D Structure Visualization</h3>
+                    <span class="card-badge">Interactive</span>
+                </div>
+                <div class="molecule-viewer" id="moleculeViewer">
+                    <div class="viewer-controls">
+                        <button class="viewer-btn" onclick="resetView()">↻</button>
+                        <button class="viewer-btn" onclick="toggleSpin()">⟲</button>
+                        <button class="viewer-btn" onclick="changeStyle()">◈</button>
+                    </div>
+                    <div id="3dmol" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Property Radar Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Molecular Properties</h3>
+                    <span class="card-badge">Real-time</span>
+                </div>
+                <div class="chart-container" id="propertyRadar"></div>
+            </div>
+
+            <!-- Generation Progress -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Generation Performance</h3>
+                    <span class="card-badge">Live</span>
+                </div>
+                <div class="chart-container" id="generationChart"></div>
+            </div>
+
+            <!-- Chemical Space Explorer -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Chemical Space Explorer</h3>
+                    <span class="card-badge">t-SNE</span>
+                </div>
+                <div class="chart-container" id="chemicalSpace"></div>
+            </div>
+
+            <!-- ADMET Predictions -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">ADMET Profile</h3>
+                    <span class="card-badge">Ensemble</span>
+                </div>
+                <div class="chart-container" id="admetChart"></div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Activity</h3>
+                    <span class="card-badge">Live Feed</span>
+                </div>
+                <div class="activity-log" id="activityLog">
+                    <div class="activity-item">
+                        <div class="activity-time">2 min</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Molecular Generation Complete</div>
+                            <div class="activity-description">Generated 25 drug-like molecules with QED > 0.8</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-time">5 min</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Synthesis Route Calculated</div>
+                            <div class="activity-description">Found 3 viable routes for target molecule</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-time">12 min</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Property Prediction</div>
+                            <div class="activity-description">Ensemble model predicted LogP: 2.34 ± 0.15</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-time">15 min</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Lead Optimization</div>
+                            <div class="activity-description">Optimized lead compound improved potency by 3.2x</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize 3D molecule viewer
+        let viewer;
+        let spinning = false;
+        
+        function init3DViewer() {
+            try {
+                let element = document.getElementById('3dmol');
+                if (!element) {
+                    console.log('3D viewer element not found');
+                    return;
+                }
+                let config = {backgroundColor: 'rgba(10, 14, 39, 0.7)'};
+                
+                // Check if 3Dmol is loaded
+                if (typeof $3Dmol !== 'undefined') {
+                    viewer = $3Dmol.createViewer(element, config);
+                    viewer = $3Dmol.createViewer(element, config);
+                    
+                    // Example molecule - Aspirin (simplified SDF format)
+                    let pdbData = `HETATM    1  C1  ASP     1       0.000   0.000   0.000  1.00  0.00           C
+HETATM    2  C2  ASP     1       1.500   0.000   0.000  1.00  0.00           C
+HETATM    3  C3  ASP     1       2.250   1.300   0.000  1.00  0.00           C
+HETATM    4  C4  ASP     1       1.500   2.600   0.000  1.00  0.00           C
+HETATM    5  C5  ASP     1       0.000   2.600   0.000  1.00  0.00           C
+HETATM    6  C6  ASP     1      -0.750   1.300   0.000  1.00  0.00           C
+HETATM    7  O1  ASP     1      -2.250   1.300   0.000  1.00  0.00           O
+HETATM    8  C7  ASP     1      -3.000   0.000   0.000  1.00  0.00           C
+HETATM    9  C8  ASP     1      -4.500   0.000   0.000  1.00  0.00           C
+HETATM   10  O2  ASP     1      -2.250  -1.300   0.000  1.00  0.00           O
+HETATM   11  C9  ASP     1       2.250  -1.300   0.000  1.00  0.00           C
+CONECT    1    2    6
+CONECT    2    1    3   11
+CONECT    3    2    4
+CONECT    4    3    5
+CONECT    5    4    6
+CONECT    6    1    5    7
+CONECT    7    6    8
+CONECT    8    7    9   10
+CONECT    9    8
+CONECT   10    8
+CONECT   11    2
+END`;
+                    
+                    viewer.addModel(pdbData, "pdb");
+                    viewer.setStyle({}, {stick: {radius: 0.15}, sphere: {radius: 0.3}});
+                    viewer.zoomTo();
+                    viewer.render();
+                } else {
+                    console.log('3Dmol library not loaded - showing placeholder');
+                    element.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">3D Viewer Loading...</div>';
+                }
+            } catch (error) {
+                console.error('Error initializing 3D viewer:', error);
+                document.getElementById('3dmol').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">3D Viewer Unavailable</div>';
+            }
+        }
+
+        function resetView() {
+            if (viewer) {
+                viewer.zoomTo();
+                viewer.render();
+            }
+        }
+
+        function toggleSpin() {
+            if (viewer) {
+                spinning = !spinning;
+                if (spinning) {
+                    viewer.spin('y');
+                } else {
+                    viewer.spin(false);
+                }
+            }
+        }
+
+        function changeStyle() {
+            if (viewer) {
+                viewer.setStyle({}, {stick: {radius: 0.2}, sphere: {radius: 0.4}});
+                viewer.render();
+            }
+        }
+
+        // Initialize charts
+        function initCharts() {
+            try {
+                // Check if Plotly is loaded
+                if (typeof Plotly === 'undefined') {
+                    console.error('Plotly not loaded');
+                    return;
+                }
+                
+                // Property Radar Chart
+            const radarData = [{
+                type: 'scatterpolar',
+                r: [0.85, 0.72, 0.91, 0.68, 0.79, 0.94],
+                theta: ['MW', 'LogP', 'TPSA', 'HBD', 'HBA', 'QED'],
+                fill: 'toself',
+                fillcolor: 'rgba(99, 179, 237, 0.2)',
+                line: {color: '#63b3ed', width: 2},
+                marker: {color: '#63b3ed', size: 8}
+            }];
+            
+            const radarLayout = {
+                polar: {
+                    radialaxis: {
+                        visible: true,
+                        range: [0, 1],
+                        gridcolor: 'rgba(99, 179, 237, 0.1)',
+                        tickfont: {color: '#94a3b8'}
+                    },
+                    angularaxis: {
+                        tickfont: {color: '#e0e6ed'}
+                    },
+                    bgcolor: 'transparent'
+                },
+                showlegend: false,
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: {color: '#e0e6ed'},
+                margin: {t: 40, r: 40, b: 40, l: 40}
+            };
+            
+            Plotly.newPlot('propertyRadar', radarData, radarLayout, {responsive: true});
+            
+            // Generation Performance Chart
+            const timeData = Array.from({length: 50}, (_, i) => i);
+            const generationData = [{
+                x: timeData,
+                y: timeData.map(t => Math.sin(t/5) * 20 + 80 + Math.random() * 10),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Validity Rate',
+                line: {color: '#10b981', width: 2}
+            }, {
+                x: timeData,
+                y: timeData.map(t => Math.cos(t/5) * 15 + 70 + Math.random() * 10),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'QED Score',
+                line: {color: '#a78bfa', width: 2}
+            }];
+            
+            const generationLayout = {
+                xaxis: {
+                    title: 'Generation Steps',
+                    gridcolor: 'rgba(99, 179, 237, 0.1)',
+                    tickfont: {color: '#94a3b8'},
+                    titlefont: {color: '#e0e6ed'}
+                },
+                yaxis: {
+                    title: 'Performance (%)',
+                    gridcolor: 'rgba(99, 179, 237, 0.1)',
+                    tickfont: {color: '#94a3b8'},
+                    titlefont: {color: '#e0e6ed'}
+                },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: {color: '#e0e6ed'},
+                margin: {t: 40, r: 40, b: 60, l: 60},
+                legend: {
+                    x: 0.02,
+                    y: 0.98,
+                    bgcolor: 'rgba(30, 41, 59, 0.5)',
+                    bordercolor: 'rgba(99, 179, 237, 0.3)',
+                    borderwidth: 1
+                }
+            };
+            
+            Plotly.newPlot('generationChart', generationData, generationLayout, {responsive: true});
+            
+            // Chemical Space Explorer
+            const n = 200;
+            const chemicalData = [{
+                x: Array.from({length: n}, () => Math.random() * 10 - 5),
+                y: Array.from({length: n}, () => Math.random() * 10 - 5),
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    size: 8,
+                    color: Array.from({length: n}, () => Math.random()),
+                    colorscale: [
+                        [0, '#4c1d95'],
+                        [0.5, '#63b3ed'],
+                        [1, '#10b981']
+                    ],
+                    showscale: true,
+                    colorbar: {
+                        title: 'QED Score',
+                        titlefont: {color: '#e0e6ed'},
+                        tickfont: {color: '#94a3b8'},
+                        bgcolor: 'rgba(30, 41, 59, 0.5)',
+                        bordercolor: 'rgba(99, 179, 237, 0.3)',
+                        borderwidth: 1
+                    }
+                }
+            }];
+            
+            const chemicalLayout = {
+                xaxis: {
+                    title: 't-SNE Component 1',
+                    gridcolor: 'rgba(99, 179, 237, 0.1)',
+                    tickfont: {color: '#94a3b8'},
+                    titlefont: {color: '#e0e6ed'}
+                },
+                yaxis: {
+                    title: 't-SNE Component 2',
+                    gridcolor: 'rgba(99, 179, 237, 0.1)',
+                    tickfont: {color: '#94a3b8'},
+                    titlefont: {color: '#e0e6ed'}
+                },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: {color: '#e0e6ed'},
+                margin: {t: 40, r: 100, b: 60, l: 60}
+            };
+            
+            Plotly.newPlot('chemicalSpace', chemicalData, chemicalLayout, {responsive: true});
+            
+            // ADMET Chart
+            const admetData = [{
+                x: ['Absorption', 'Distribution', 'Metabolism', 'Excretion', 'Toxicity'],
+                y: [0.82, 0.76, 0.91, 0.68, 0.88],
+                type: 'bar',
+                marker: {
+                    color: ['#10b981', '#63b3ed', '#a78bfa', '#f59e0b', '#ef4444'],
+                    line: {
+                        color: 'rgba(255, 255, 255, 0.3)',
+                        width: 1
+                    }
+                }
+            }];
+            
+            const admetLayout = {
+                xaxis: {
+                    gridcolor: 'rgba(99, 179, 237, 0.1)',
+                    tickfont: {color: '#e0e6ed'}
+                },
+                yaxis: {
+                    title: 'Score',
+                    range: [0, 1],
+                    gridcolor: 'rgba(99, 179, 237, 0.1)',
+                    tickfont: {color: '#94a3b8'},
+                    titlefont: {color: '#e0e6ed'}
+                },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: {color: '#e0e6ed'},
+                margin: {t: 40, r: 40, b: 60, l: 60}
+            };
+            
+                            Plotly.newPlot('admetChart', admetData, admetLayout, {responsive: true});
+            } catch (error) {
+                console.error('Error initializing charts:', error);
+                // Show error message in chart containers
+                ['propertyRadar', 'generationChart', 'chemicalSpace', 'admetChart'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">Chart Loading...</div>';
+                    }
+                });
+            }
+        }
+
+        // Generate molecules function
+        function generateMolecules() {
+            const smiles = document.getElementById('smilesInput').value;
+            const mode = document.getElementById('modeSelect').value;
+            const target = document.getElementById('targetSelect').value;
+            const num = document.getElementById('numMolecules').value;
+            
+            // Add to activity log
+            addActivity('Generating Molecules', `Starting ${mode} generation of ${num} molecules`);
+            
+            // Simulate generation
+            setTimeout(() => {
+                updateMetrics();
+                addActivity('Generation Complete', `Successfully generated ${num} molecules with ${target} properties`);
+            }, 2000);
+        }
+
+        // Add activity to log
+        function addActivity(title, description) {
+            const log = document.getElementById('activityLog');
+            const item = document.createElement('div');
+            item.className = 'activity-item';
+            item.innerHTML = `
+                <div class="activity-time">now</div>
+                <div class="activity-content">
+                    <div class="activity-title">${title}</div>
+                    <div class="activity-description">${description}</div>
+                </div>
+            `;
+            log.insertBefore(item, log.firstChild);
+            
+            // Update times
+            const items = log.querySelectorAll('.activity-item');
+            items.forEach((item, index) => {
+                if (index > 0) {
+                    const time = item.querySelector('.activity-time');
+                    if (time.textContent === 'now') {
+                        time.textContent = '1 min';
+                    } else {
+                        const mins = parseInt(time.textContent);
+                        if (!isNaN(mins)) {
+                            time.textContent = `${mins + 1} min`;
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update metrics with animation
+        function updateMetrics() {
+            animateValue('moleculesGenerated', 1247, 1257, 1000);
+            animateValue('avgQED', 0.832, 0.845, 1000);
+            animateValue('validityRate', 95.8, 96.2, 1000);
+        }
+
+        function animateValue(id, start, end, duration) {
+            const element = document.getElementById(id);
+            const range = end - start;
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const current = start + range * progress;
+                
+                if (id === 'moleculesGenerated') {
+                    element.textContent = Math.floor(current).toLocaleString();
+                } else if (id === 'validityRate') {
+                    element.textContent = current.toFixed(1) + '%';
+                } else {
+                    element.textContent = current.toFixed(3);
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+
+        // Real-time updates
+        function startRealTimeUpdates() {
+            try {
+                setInterval(() => {
+                    if (typeof Plotly !== 'undefined') {
+                        // Update generation chart with new data
+                        const newX = Array.from({length: 50}, (_, i) => i + Date.now()/1000);
+                        const newY1 = newX.map(t => Math.sin(t/5) * 20 + 80 + Math.random() * 10);
+                        const newY2 = newX.map(t => Math.cos(t/5) * 15 + 70 + Math.random() * 10);
+                        
+                        Plotly.update('generationChart', {
+                            x: [newX, newX],
+                            y: [newY1, newY2]
+                        }, {}, [0, 1]);
+                    }
+                }, 2000);
+            } catch (error) {
+                console.error('Error starting real-time updates:', error);
+            }
+        }
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing OChem Helper Dashboard...');
+            
+            // Check for required libraries
+            if (typeof Plotly === 'undefined') {
+                console.warn('Plotly library not fully loaded - charts may not display');
+            }
+            if (typeof $3Dmol === 'undefined') {
+                console.warn('3Dmol library not fully loaded - 3D viewer may not display');
+            }
+            
+            // Initialize components with error handling
+            setTimeout(() => {
+                init3DViewer();
+                initCharts();
+                startRealTimeUpdates();
+            }, 100); // Small delay to ensure libraries are loaded
+        });
+
+        // Fallback for libraries that might load slowly
+        window.addEventListener('load', () => {
+            console.log('Window fully loaded');
+        });
+    </script>
+</body>
+</html>
