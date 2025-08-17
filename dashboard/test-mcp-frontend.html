@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test MCP Frontend Connection</title>
+    <script src="config.js"></script>
+    <script src="claude-api.js"></script>
+    <style>
+        body { 
+            font-family: monospace; 
+            background: #1a1a1a; 
+            color: #0f0; 
+            padding: 20px;
+        }
+        .test { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border: 1px solid #0f0;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        pre { 
+            background: #000; 
+            padding: 10px; 
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>MCP Frontend Connection Test</h1>
+    
+    <div class="test">
+        <h2>1. Direct Fetch Test</h2>
+        <button onclick="testDirectFetch()">Test Direct Fetch</button>
+        <pre id="direct-result"></pre>
+    </div>
+
+    <div class="test">
+        <h2>2. MCP Connection Class Test</h2>
+        <button onclick="testMCPClass()">Test MCP Class</button>
+        <pre id="mcp-result"></pre>
+    </div>
+
+    <div class="test">
+        <h2>3. Call MCP Tool Test</h2>
+        <button onclick="testMCPTool()">Test Predict Properties</button>
+        <pre id="tool-result"></pre>
+    </div>
+
+    <script>
+        // Test direct fetch
+        async function testDirectFetch() {
+            const resultEl = document.getElementById('direct-result');
+            try {
+                resultEl.textContent = 'Fetching from http://localhost:8001/health...';
+                
+                const response = await fetch('http://localhost:8001/health');
+                const data = await response.json();
+                
+                resultEl.innerHTML = '<span class="success">SUCCESS!</span>\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.innerHTML = '<span class="error">ERROR:</span> ' + error.message;
+            }
+        }
+
+        // Test MCP Connection class
+        async function testMCPClass() {
+            const resultEl = document.getElementById('mcp-result');
+            try {
+                resultEl.textContent = 'Creating MCP connection...';
+                
+                const mcp = new MCPConnection();
+                resultEl.textContent += '\nConnecting to MCP server...';
+                
+                const connected = await mcp.connect();
+                
+                if (connected) {
+                    resultEl.innerHTML = '<span class="success">Connected!</span>\n';
+                    resultEl.innerHTML += 'Available tools:\n' + JSON.stringify(mcp.tools, null, 2);
+                } else {
+                    resultEl.innerHTML = '<span class="error">Failed to connect</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = '<span class="error">ERROR:</span> ' + error.message;
+            }
+        }
+
+        // Test MCP tool call
+        async function testMCPTool() {
+            const resultEl = document.getElementById('tool-result');
+            try {
+                resultEl.textContent = 'Calling predict_properties for benzene (c1ccccc1)...';
+                
+                const mcp = new MCPConnection();
+                await mcp.connect();
+                
+                const result = await mcp.predictProperties('c1ccccc1');
+                
+                resultEl.innerHTML = '<span class="success">SUCCESS!</span>\n' + JSON.stringify(result, null, 2);
+            } catch (error) {
+                resultEl.innerHTML = '<span class="error">ERROR:</span> ' + error.message + '\n\n' + error.stack;
+            }
+        }
+
+        // Run tests on load
+        window.onload = () => {
+            console.log('MCP Test Page Loaded');
+            console.log('CONFIG:', window.CONFIG);
+            console.log('MCP URL:', window.CONFIG?.api?.mcp || 'http://localhost:8001');
+        };
+    </script>
+</body>
+</html>

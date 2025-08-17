@@ -29,9 +29,11 @@ fi
 if check_port 8001; then
     echo "Starting MCP HTTP Bridge on port 8001..."
     cd ../mcp/server
-    python mcp_http_bridge.py --port 8001 &
+    source ../../venv/bin/activate
+    python3 simple_mcp_bridge.py --port 8001 &
     MCP_PID=$!
     echo "MCP Bridge PID: $MCP_PID"
+    deactivate
 else
     echo "MCP HTTP Bridge already running on port 8001"
 fi

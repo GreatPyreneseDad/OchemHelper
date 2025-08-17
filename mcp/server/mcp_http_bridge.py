@@ -15,7 +15,11 @@ from pydantic import BaseModel
 import uvicorn
 
 # Import the MCP server
-from ochem_mcp import OChemMCPServer
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from server.ochem_mcp import OChemMCPServer
 
 
 class ToolListRequest(BaseModel):
