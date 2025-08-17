@@ -451,6 +451,9 @@ class AIChemistryAgent {
         };
 
         switch (intent.type) {
+            case 'set_molecule':
+                response = await this.handleSetMoleculeIntent(intent, context);
+                break;
             case 'generate':
                 response = await this.handleGenerateIntent(intent, context);
                 break;
@@ -486,6 +489,16 @@ class AIChemistryAgent {
 
     analyzeIntent(message) {
         const lower = message.toLowerCase();
+        
+        // Set/Input patterns
+        if (lower.includes('set') || lower.includes('input') || lower.includes('use')) {
+            if (lower.includes('smiles') || message.includes('c1ccccc1') || /[A-Z][A-Za-z0-9@+\-\[\]()=#]+/.test(message)) {
+                return {
+                    type: 'set_molecule',
+                    entities: this.extractSetMoleculeEntities(message)
+                };
+            }
+        }
         
         // Generation patterns
         if (lower.includes('generate') || lower.includes('create') || lower.includes('make')) {
@@ -538,6 +551,51 @@ class AIChemistryAgent {
         return {
             type: 'general',
             entities: {}
+        };
+    }
+
+    async handleSetMoleculeIntent(intent, context) {
+        const { smiles } = intent.entities;
+        
+        if (!smiles) {
+            return {
+                message: "I didn't find a valid SMILES string in your message. Please provide a SMILES notation like 'c1ccccc1' for benzene.",
+                actions: []
+            };
+        }
+
+        // Use automation bridge to set the SMILES
+        if (window.automationBridge) {
+            const result = await window.automationBridge.executeAction('setInputSMILES', smiles);
+            if (result.success) {
+                // Update the viewer
+                if (window.updateMoleculeViewer) {
+                    window.updateMoleculeViewer(smiles);
+                }
+                
+                return {
+                    message: `I've set the input SMILES to \`${smiles}\`. Would you like me to analyze this molecule or generate similar structures?`,
+                    actions: [
+                        {
+                            type: 'button',
+                            label: 'Analyze Structure',
+                            action: 'analyzeCurrentMolecule'
+                        },
+                        {
+                            type: 'button',
+                            label: 'Generate Similar',
+                            action: 'generateMolecules'
+                        }
+                    ]
+                };
+            }
+        }
+
+        // Fallback
+        document.getElementById('smilesInput').value = smiles;
+        return {
+            message: `I've set the input SMILES to \`${smiles}\`.`,
+            actions: []
         };
     }
 
@@ -1083,6 +1141,12 @@ Just type your question or click one of the suggestion chips!
         const qedMatch = message.match(/QED\s*[>>=]+\s*([\d.]+)/i);
         if (qedMatch) entities.qed = parseFloat(qedMatch[1]);
         
+        // Extract SMILES if present
+        const smilesMatch = message.match(/[A-Z][A-Za-z0-9@+\-\[\]()=#]+/);
+        if (smilesMatch && smilesMatch[0].length > 2) {
+            entities.smiles = smilesMatch[0];
+        }
+        
         return entities;
     }
 
@@ -1124,6 +1188,29 @@ Just type your question or click one of the suggestion chips!
         if (/admet/i.test(message)) entities.predictType = 'admet';
         if (/solubility/i.test(message)) entities.predictType = 'solubility';
         if (/bbb|blood[\s-]?brain/i.test(message)) entities.predictType = 'bbb';
+        
+        return entities;
+    }
+
+    extractSetMoleculeEntities(message) {
+        const entities = {};
+        
+        // Look for SMILES patterns
+        // Common patterns: benzene (c1ccccc1), ethanol (CCO), aspirin (CC(=O)OC1=CC=CC=C1C(=O)O)
+        const smilesPatterns = [
+            /c1ccccc1/i,  // benzene
+            /[A-Z][A-Za-z0-9@+\-\[\]()=#]{2,}/,  // General SMILES
+            /"([^"]+)"/,  // Quoted SMILES
+            /'([^']+)'/   // Single quoted SMILES
+        ];
+        
+        for (const pattern of smilesPatterns) {
+            const match = message.match(pattern);
+            if (match) {
+                entities.smiles = match[1] || match[0];
+                break;
+            }
+        }
         
         return entities;
     }
