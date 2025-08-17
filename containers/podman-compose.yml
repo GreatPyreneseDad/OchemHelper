@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  ochem-api:
+    build:
+      context: ..
+      dockerfile: containers/Containerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OCHEM_ENV=production
+    restart: unless-stopped
+    
+  redis:
+    image: docker.io/redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    
+  postgres:
+    image: docker.io/postgres:15-alpine
+    environment:
+      POSTGRES_DB: ochem
+      POSTGRES_USER: ochem
+      POSTGRES_PASSWORD: ochem123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
