@@ -6,17 +6,40 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 import logging
-import torch
 from pathlib import Path
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import Descriptors, Crippen
 import uuid
 import json
+import os
 
-# Import our models
-from src.models.generative.smiles_vae import MolecularVAE, SMILESTokenizer
+# Try to import PyTorch, fall back to mock if not available
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    # Create a mock torch module
+    class MockTorch:
+        def randn(*args, **kwargs):
+            import numpy as np
+            return np.random.randn(*args)
+        def randn_like(x):
+            import numpy as np
+            return np.random.randn(*x.shape)
+        def load(*args, **kwargs):
+            return {}
+    torch = MockTorch()
+
+# Import our models - use mock if requested or torch not available
+if os.environ.get('USE_MOCK_VAE') or not TORCH_AVAILABLE:
+    from src.models.generative.mock_vae import MolecularVAE, SMILESTokenizer
+else:
+    from src.models.generative.smiles_vae import MolecularVAE, SMILESTokenizer
+
 from src.core.molecular_graph import MolecularGraph
+from src.api.structure_converter import converter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -88,11 +111,37 @@ class PredictResponse(BaseModel):
     message: str
 
 
+class StructureRequest(BaseModel):
+    smiles: str
+    format: str = Field(default="pdb", pattern="^(pdb|sdf|mol2|xyz)$")
+
+
+class Structure3DResponse(BaseModel):
+    structure: str
+    format: str
+    smiles: str
+    
+    
+class StructureInfoResponse(BaseModel):
+    atoms: List[Dict]
+    bonds: List[Dict]
+    smiles: str
+    formula: str
+    molecular_weight: float
+
+
 # Startup event to load models
 @app.on_event("startup")
 async def load_models():
     """Load pretrained models on startup."""
     global MODELS
+    
+    # If using mock VAE or torch not available, use mock model
+    if os.environ.get('USE_MOCK_VAE') or not TORCH_AVAILABLE:
+        tokenizer = SMILESTokenizer()
+        MODELS['vae'] = MolecularVAE(vocab_size=tokenizer.vocab_size)
+        logger.info("Initialized mock VAE model (PyTorch not available or USE_MOCK_VAE set)")
+        return
     
     # Check for VAE checkpoint
     vae_path = Path("models/checkpoints/best_model.pt")
@@ -118,6 +167,10 @@ async def load_models():
             logger.info("Loaded VAE model")
         except Exception as e:
             logger.error(f"Failed to load VAE: {e}")
+            # Fall back to mock
+            tokenizer = SMILESTokenizer()
+            MODELS['vae'] = MolecularVAE(vocab_size=tokenizer.vocab_size)
+            logger.info("Initialized mock VAE model (failed to load real model)")
     else:
         # Initialize default model
         tokenizer = SMILESTokenizer()
@@ -303,6 +356,38 @@ async def health_check():
         version="0.1.0",
         models_loaded=list(MODELS.keys())
     )
+
+
+@app.post("/api/structure/convert", response_model=Structure3DResponse)
+async def convert_structure(request: StructureRequest):
+    """Convert SMILES to 3D structure in specified format."""
+    try:
+        structure = converter.smiles_to_3d(request.smiles, request.format)
+        if structure is None:
+            raise HTTPException(status_code=400, detail="Invalid SMILES or conversion failed")
+        
+        return Structure3DResponse(
+            structure=structure,
+            format=request.format,
+            smiles=request.smiles
+        )
+    except Exception as e:
+        logger.error(f"Error in structure conversion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/structure/info", response_model=StructureInfoResponse)
+async def get_structure_info(request: StructureRequest):
+    """Get 3D structure information including atoms and bonds."""
+    try:
+        info = converter.get_3d_info(request.smiles)
+        if "error" in info:
+            raise HTTPException(status_code=400, detail=info["error"])
+        
+        return StructureInfoResponse(**info)
+    except Exception as e:
+        logger.error(f"Error getting structure info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Helper functions

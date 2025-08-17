@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Full System Test</title>
+    <script src="config.js"></script>
+    <script src="api-integration.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, sans-serif; 
+            background: #0a0e27; 
+            color: #e0e6ed; 
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .test-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        h1 {
+            background: linear-gradient(135deg, #63b3ed 0%, #4c1d95 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        h2 {
+            color: #63b3ed;
+            margin-bottom: 10px;
+        }
+        button {
+            background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px 0;
+            width: 100%;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(76, 29, 149, 0.3);
+        }
+        input, select {
+            background: rgba(10, 14, 39, 0.7);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 6px;
+            padding: 8px;
+            color: #e0e6ed;
+            width: 100%;
+            margin: 5px 0;
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.85em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        .status.success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+        }
+        .status.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+        .status.info {
+            background: rgba(99, 179, 237, 0.2);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            color: #63b3ed;
+        }
+        .molecule-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .molecule-item {
+            padding: 5px;
+            margin: 2px 0;
+            background: rgba(99, 179, 237, 0.1);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 OChem Helper Full System Test</h1>
+    
+    <div class="test-grid">
+        <!-- API Connection Test -->
+        <div class="test-card">
+            <h2>1. API Connection</h2>
+            <button onclick="testAPIConnection()">Test OChem API</button>
+            <button onclick="testMCPConnection()">Test MCP Server</button>
+            <div id="api-status"></div>
+        </div>
+
+        <!-- Simple Generation Test -->
+        <div class="test-card">
+            <h2>2. Generate Molecules</h2>
+            <label>Number of molecules:</label>
+            <input type="number" id="num-molecules" value="5" min="1" max="20">
+            <label>Mode:</label>
+            <select id="gen-mode">
+                <option value="random">Random</option>
+                <option value="similar">Similar to Reference</option>
+            </select>
+            <label>Reference SMILES (for similar mode):</label>
+            <input type="text" id="ref-smiles" placeholder="c1ccccc1">
+            <button onclick="testGeneration()">Generate Molecules</button>
+            <div id="gen-status"></div>
+            <div id="gen-results" class="molecule-list"></div>
+        </div>
+
+        <!-- Property Prediction Test -->
+        <div class="test-card">
+            <h2>3. Predict Properties</h2>
+            <label>SMILES:</label>
+            <input type="text" id="predict-smiles" value="CCO" placeholder="Enter SMILES">
+            <button onclick="testPrediction()">Predict Properties</button>
+            <div id="predict-status"></div>
+            <pre id="predict-results"></pre>
+        </div>
+
+        <!-- MCP Tools Test -->
+        <div class="test-card">
+            <h2>4. MCP Chemistry Tools</h2>
+            <label>SMILES for analysis:</label>
+            <input type="text" id="mcp-smiles" value="CC(=O)OC1=CC=CC=C1C(=O)O" placeholder="Aspirin">
+            <button onclick="testMCPProperties()">MCP: Predict Properties</button>
+            <button onclick="testMCPSynthesis()">MCP: Suggest Synthesis</button>
+            <button onclick="testMCPOptimize()">MCP: Optimize Structure</button>
+            <div id="mcp-status"></div>
+            <pre id="mcp-results"></pre>
+        </div>
+
+        <!-- Full Workflow Test -->
+        <div class="test-card">
+            <h2>5. Complete Workflow</h2>
+            <button onclick="testFullWorkflow()">Run Full Drug Discovery Workflow</button>
+            <div id="workflow-status"></div>
+            <pre id="workflow-results"></pre>
+        </div>
+
+        <!-- Console Log -->
+        <div class="test-card">
+            <h2>6. Console Output</h2>
+            <button onclick="clearConsole()">Clear</button>
+            <pre id="console-output"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Console capture
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+            consoleOutput.textContent += `[LOG] ${msg}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+            consoleOutput.textContent += `[ERROR] ${msg}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        function clearConsole() {
+            consoleOutput.textContent = '';
+        }
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Test API Connection
+        async function testAPIConnection() {
+            try {
+                showStatus('api-status', 'Testing OChem API connection...', 'info');
+                const response = await fetch('http://localhost:8000/');
+                const data = await response.json();
+                showStatus('api-status', `✓ OChem API Connected! Version: ${data.version}`, 'success');
+                console.log('OChem API response:', data);
+            } catch (error) {
+                showStatus('api-status', `✗ OChem API Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMCPConnection() {
+            try {
+                showStatus('api-status', 'Testing MCP server connection...', 'info');
+                const response = await fetch('http://localhost:8001/health');
+                const data = await response.json();
+                showStatus('api-status', `✓ MCP Server Connected! Tools: ${data.tools_available}`, 'success');
+                console.log('MCP response:', data);
+            } catch (error) {
+                showStatus('api-status', `✗ MCP Server Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test Generation
+        async function testGeneration() {
+            try {
+                showStatus('gen-status', 'Generating molecules...', 'info');
+                const resultsDiv = document.getElementById('gen-results');
+                resultsDiv.innerHTML = '';
+                
+                const params = {
+                    n_molecules: parseInt(document.getElementById('num-molecules').value),
+                    mode: document.getElementById('gen-mode').value
+                };
+                
+                if (params.mode === 'similar') {
+                    params.reference_smiles = document.getElementById('ref-smiles').value;
+                    if (!params.reference_smiles) {
+                        showStatus('gen-status', 'Please enter a reference SMILES for similar mode', 'error');
+                        return;
+                    }
+                }
+                
+                console.log('Generation params:', params);
+                
+                const api = new OChemAPI();
+                const result = await api.generateMolecules(params);
+                
+                showStatus('gen-status', `✓ Generated ${result.molecules.length} molecules!`, 'success');
+                
+                // Display molecules
+                result.molecules.forEach((mol, i) => {
+                    const item = document.createElement('div');
+                    item.className = 'molecule-item';
+                    item.textContent = `${i + 1}. ${mol}`;
+                    resultsDiv.appendChild(item);
+                });
+                
+                // Display properties if available
+                if (result.properties && result.properties.length > 0) {
+                    console.log('Properties:', result.properties);
+                }
+                
+                console.log('Generation result:', result);
+            } catch (error) {
+                showStatus('gen-status', `✗ Generation Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test Property Prediction
+        async function testPrediction() {
+            try {
+                showStatus('predict-status', 'Predicting properties...', 'info');
+                const smiles = document.getElementById('predict-smiles').value;
+                
+                if (!smiles) {
+                    showStatus('predict-status', 'Please enter a SMILES string', 'error');
+                    return;
+                }
+                
+                const api = new OChemAPI();
+                const result = await api.predictProperties([smiles], ['MW', 'logP', 'TPSA', 'QED']);
+                
+                showStatus('predict-status', '✓ Properties predicted!', 'success');
+                document.getElementById('predict-results').textContent = JSON.stringify(result, null, 2);
+                
+                console.log('Prediction result:', result);
+            } catch (error) {
+                showStatus('predict-status', `✗ Prediction Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test MCP Tools
+        async function testMCPProperties() {
+            try {
+                showStatus('mcp-status', 'Calling MCP predict_properties...', 'info');
+                const smiles = document.getElementById('mcp-smiles').value;
+                
+                const response = await fetch('http://localhost:8001/call_tool', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tool_name: 'predict_properties',
+                        arguments: { smiles: smiles }
+                    })
+                });
+                
+                const result = await response.json();
+                showStatus('mcp-status', '✓ MCP Properties predicted!', 'success');
+                document.getElementById('mcp-results').textContent = JSON.stringify(result, null, 2);
+                
+                console.log('MCP Properties:', result);
+            } catch (error) {
+                showStatus('mcp-status', `✗ MCP Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMCPSynthesis() {
+            try {
+                showStatus('mcp-status', 'Calling MCP suggest_synthesis...', 'info');
+                const smiles = document.getElementById('mcp-smiles').value;
+                
+                const response = await fetch('http://localhost:8001/call_tool', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tool_name: 'suggest_synthesis',
+                        arguments: { target_smiles: smiles, max_steps: 3 }
+                    })
+                });
+                
+                const result = await response.json();
+                showStatus('mcp-status', '✓ MCP Synthesis routes found!', 'success');
+                document.getElementById('mcp-results').textContent = JSON.stringify(result, null, 2);
+                
+                console.log('MCP Synthesis:', result);
+            } catch (error) {
+                showStatus('mcp-status', `✗ MCP Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMCPOptimize() {
+            try {
+                showStatus('mcp-status', 'Calling MCP optimize_structure...', 'info');
+                const smiles = document.getElementById('mcp-smiles').value;
+                
+                const response = await fetch('http://localhost:8001/call_tool', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tool_name: 'optimize_structure',
+                        arguments: {
+                            lead_smiles: smiles,
+                            optimization_goals: {
+                                MW: [200, 400],
+                                logP: [1, 3],
+                                QED: 0.8
+                            },
+                            num_molecules: 3
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                showStatus('mcp-status', '✓ MCP Optimization complete!', 'success');
+                document.getElementById('mcp-results').textContent = JSON.stringify(result, null, 2);
+                
+                console.log('MCP Optimization:', result);
+            } catch (error) {
+                showStatus('mcp-status', `✗ MCP Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Full Workflow Test
+        async function testFullWorkflow() {
+            try {
+                const resultsDiv = document.getElementById('workflow-results');
+                resultsDiv.textContent = '';
+                showStatus('workflow-status', 'Running full workflow...', 'info');
+                
+                const log = (msg) => {
+                    resultsDiv.textContent += msg + '\n';
+                    console.log(msg);
+                };
+                
+                // Step 1: Generate molecules
+                log('1. Generating drug-like molecules...');
+                const api = new OChemAPI();
+                const genResult = await api.generateMolecules({
+                    n_molecules: 5,
+                    mode: 'random'
+                });
+                log(`   Generated ${genResult.molecules.length} molecules`);
+                
+                // Step 2: Predict properties
+                if (genResult.molecules.length > 0) {
+                    log('\n2. Predicting properties...');
+                    const predResult = await api.predictProperties(
+                        genResult.molecules.slice(0, 3),
+                        ['MW', 'logP', 'QED']
+                    );
+                    log(`   Predicted properties for ${predResult.molecules.length} molecules`);
+                    
+                    // Step 3: Use MCP for optimization
+                    log('\n3. Optimizing lead compound...');
+                    const leadSmiles = genResult.molecules[0];
+                    const mcpResponse = await fetch('http://localhost:8001/call_tool', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tool_name: 'optimize_structure',
+                            arguments: {
+                                lead_smiles: leadSmiles,
+                                optimization_goals: { QED: 0.9 },
+                                num_molecules: 2
+                            }
+                        })
+                    });
+                    const optResult = await mcpResponse.json();
+                    log(`   Generated ${optResult.result.optimized_molecules.length} optimized structures`);
+                    
+                    showStatus('workflow-status', '✓ Workflow completed successfully!', 'success');
+                } else {
+                    showStatus('workflow-status', 'No molecules generated', 'error');
+                }
+                
+            } catch (error) {
+                showStatus('workflow-status', `✗ Workflow Error: ${error.message}`, 'error');
+                console.error('Workflow error:', error);
+            }
+        }
+
+        // Initialize
+        window.onload = () => {
+            console.log('Full System Test Page Loaded');
+            console.log('CONFIG:', window.CONFIG);
+            testAPIConnection();
+            testMCPConnection();
+        };
+    </script>
+</body>
+</html>

@@ -654,21 +654,47 @@ END`;
         }
 
         // Update molecule viewer with SMILES
-        function updateMoleculeViewer(smiles) {
+        async function updateMoleculeViewer(smiles) {
             if (!viewer || !smiles) return;
             
-            // Convert SMILES to 3D structure (simplified for demo)
-            // In production, this would call an API to get 3D coordinates
-            const pdbData = generatePDBFromSMILES(smiles);
-            
-            viewer.clear();
-            viewer.addModel(pdbData, "pdb");
-            viewer.setStyle({}, {stick: {radius: 0.15}, sphere: {radius: 0.3}});
-            viewer.zoomTo();
-            viewer.render();
+            try {
+                // Show loading state
+                viewer.clear();
+                viewer.addLabel("Loading...", {position: {x:0, y:0, z:0}, backgroundColor: 'gray', backgroundOpacity: 0.8});
+                viewer.render();
+                
+                // Get real 3D structure from API
+                if (window.OChemAPI) {
+                    const api = window.OChemAPI;
+                    const result = await api.convertStructure(smiles, 'pdb');
+                    
+                    if (result && result.structure) {
+                        viewer.clear();
+                        viewer.addModel(result.structure, "pdb");
+                        viewer.setStyle({}, {stick: {radius: 0.15}, sphere: {radius: 0.3}});
+                        viewer.zoomTo();
+                        viewer.render();
+                        
+                        addActivity('3D Structure', `Loaded structure for ${smiles}`);
+                    }
+                } else {
+                    // Fallback to placeholder
+                    const pdbData = generatePDBFromSMILES(smiles);
+                    viewer.clear();
+                    viewer.addModel(pdbData, "pdb");
+                    viewer.setStyle({}, {stick: {radius: 0.15}, sphere: {radius: 0.3}});
+                    viewer.zoomTo();
+                    viewer.render();
+                }
+            } catch (error) {
+                console.error('Failed to load 3D structure:', error);
+                viewer.clear();
+                viewer.addLabel("Failed to load structure", {position: {x:0, y:0, z:0}, backgroundColor: 'red', backgroundOpacity: 0.8});
+                viewer.render();
+            }
         }
 
-        // Simple SMILES to PDB converter (placeholder)
+        // Simple SMILES to PDB converter (fallback)
         function generatePDBFromSMILES(smiles) {
             // This is a placeholder - in production, use a proper converter
             return `HETATM    1  C1  MOL     1       0.000   0.000   0.000  1.00  0.00           C
@@ -859,7 +885,7 @@ END`;
         }
 
         // Generate molecules function
-        function generateMolecules() {
+        async function generateMolecules() {
             const smiles = document.getElementById('smilesInput').value;
             const mode = document.getElementById('modeSelect').value;
             const target = document.getElementById('targetSelect').value;
@@ -868,11 +894,58 @@ END`;
             // Add to activity log
             addActivity('Generating Molecules', `Starting ${mode} generation of ${num} molecules`);
             
-            // Simulate generation
-            setTimeout(() => {
-                updateMetrics();
-                addActivity('Generation Complete', `Successfully generated ${num} molecules with ${target} properties`);
-            }, 2000);
+            // Check if API is available
+            if (window.generateMoleculesWithAPI) {
+                try {
+                    await window.generateMoleculesWithAPI();
+                } catch (error) {
+                    console.error('API generation failed:', error);
+                    addActivity('Generation Error', error.message);
+                }
+            } else if (window.OChemAPI) {
+                // Use API directly
+                try {
+                    const api = window.OChemAPI;
+                    const params = {
+                        n_molecules: parseInt(num),
+                        mode: mode
+                    };
+                    
+                    if (mode === 'similar' && smiles) {
+                        params.reference_smiles = smiles;
+                        params.variance = 0.1;
+                    }
+                    
+                    const result = await api.generateMolecules(params);
+                    
+                    if (result.molecules && result.molecules.length > 0) {
+                        addActivity('Generation Complete', `Generated ${result.molecules.length} molecules`);
+                        
+                        // Update the first molecule in viewer
+                        document.getElementById('smilesInput').value = result.molecules[0];
+                        if (window.updateMoleculeViewer) {
+                            window.updateMoleculeViewer(result.molecules[0]);
+                        }
+                        
+                        // Update metrics with real data
+                        updateMetrics();
+                        
+                        // Show molecules in activity log
+                        result.molecules.slice(0, 5).forEach((mol, i) => {
+                            addActivity(`Molecule ${i + 1}`, mol);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Generation error:', error);
+                    addActivity('Generation Failed', error.message);
+                }
+            } else {
+                // Fallback simulation
+                setTimeout(() => {
+                    updateMetrics();
+                    addActivity('Generation Complete', `Successfully generated ${num} molecules with ${target} properties`);
+                }, 2000);
+            }
         }
 
         // Add activity to log
@@ -960,6 +1033,9 @@ END`;
             }
         }
 
+        // Make functions available globally
+        window.updateMoleculeViewer = updateMoleculeViewer;
+        
         // Initialize everything
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Initializing OChem Helper Dashboard...');

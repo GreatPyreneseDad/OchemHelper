@@ -43,7 +43,7 @@ class OChemAPI {
 
     // Generation endpoints
     async generateMolecules(params) {
-        return this.request('/api/v1/generate', {
+        return this.request('/api/generate', {
             method: 'POST',
             body: JSON.stringify(params)
         });
@@ -51,71 +51,71 @@ class OChemAPI {
 
     // Prediction endpoints
     async predictProperties(molecules, properties) {
-        return this.request('/api/v1/predict/properties', {
+        return this.request('/api/predict', {
             method: 'POST',
             body: JSON.stringify({ molecules, properties })
         });
     }
 
     async predictADMET(molecule) {
-        return this.request('/api/v1/predict/admet', {
-            method: 'POST',
-            body: JSON.stringify({ molecule })
-        });
+        // ADMET prediction not yet implemented in backend
+        // For now, use regular property prediction
+        return this.predictProperties([molecule], ['MW', 'logP', 'TPSA', 'QED']);
     }
 
     // Optimization endpoints
     async optimizeLead(leadSmiles, goals, maintainScaffold = true) {
-        return this.request('/api/v1/optimize', {
+        return this.request('/api/optimize', {
             method: 'POST',
             body: JSON.stringify({
-                lead_smiles: leadSmiles,
-                optimization_goals: goals,
-                maintain_scaffold: maintainScaffold
+                smiles: leadSmiles,
+                objective: 'QED',
+                constraint: goals,
+                n_steps: 10
             })
         });
     }
 
-    // Synthesis endpoints
+    // Synthesis endpoints - Not yet implemented in backend
     async suggestSynthesis(targetSmiles, maxSteps = 5) {
-        return this.request('/api/v1/synthesis/routes', {
-            method: 'POST',
-            body: JSON.stringify({
-                target_smiles: targetSmiles,
-                max_steps: maxSteps
-            })
-        });
+        console.warn('Synthesis routes not yet implemented in backend');
+        return { routes: [], message: 'Feature coming soon' };
     }
 
     async checkReaction(reactants, products, conditions = null) {
-        return this.request('/api/v1/synthesis/predict-reaction', {
-            method: 'POST',
-            body: JSON.stringify({
-                reactants,
-                products,
-                conditions
-            })
-        });
+        console.warn('Reaction prediction not yet implemented in backend');
+        return { feasible: false, message: 'Feature coming soon' };
     }
 
-    // Analysis endpoints
+    // Analysis endpoints - Not yet implemented in backend
     async analyzeScaffold(molecules) {
-        return this.request('/api/v1/analyze/scaffold', {
-            method: 'POST',
-            body: JSON.stringify({ molecules })
-        });
+        console.warn('Scaffold analysis not yet implemented in backend');
+        return { scaffolds: [], message: 'Feature coming soon' };
     }
 
     async calculateSimilarity(molecule1, molecule2) {
-        return this.request('/api/v1/analyze/similarity', {
-            method: 'POST',
-            body: JSON.stringify({ molecule1, molecule2 })
-        });
+        console.warn('Similarity calculation not yet implemented in backend');
+        return { similarity: 0, message: 'Feature coming soon' };
     }
 
     // Health check
     async checkHealth() {
         return this.request('/health');
+    }
+    
+    // Structure conversion
+    async convertStructure(smiles, format = 'pdb') {
+        return this.request('/api/structure/convert', {
+            method: 'POST',
+            body: JSON.stringify({ smiles, format })
+        });
+    }
+    
+    async getStructureInfo(smiles) {
+        return this.request('/api/structure/info', {
+            method: 'POST',  
+            body: JSON.stringify({ smiles })
+        });
     }
 }
 
@@ -193,8 +193,14 @@ async function updatePropertiesChart(smiles) {
         const properties = ['MW', 'logP', 'TPSA', 'HBD', 'HBA', 'QED'];
         const result = await api.predictProperties([smiles], properties);
         
-        if (result.results && result.results[0]) {
-            const props = result.results[0];
+        if (result.predictions) {
+            const props = {};
+            // Convert from array format to object format
+            properties.forEach((prop, idx) => {
+                if (result.predictions[prop] && result.predictions[prop][0] !== undefined) {
+                    props[prop] = result.predictions[prop][0];
+                }
+            });
             const values = properties.map(p => 
                 props[p] ? normalizeProperty(p, props[p]) : 0
             );

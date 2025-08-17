@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug AI Chat</title>
+    <script src="config.js"></script>
+    <script src="ai-chat.js"></script>
+    <script src="automation-bridge.js"></script>
+    <script src="claude-api.js"></script>
+    <style>
+        body { 
+            font-family: monospace; 
+            background: #1a1a1a; 
+            color: #0f0; 
+            padding: 20px;
+        }
+        .section { 
+            margin: 20px 0; 
+            padding: 10px; 
+            border: 1px solid #0f0;
+        }
+        button {
+            background: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 5px 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #444;
+        }
+        pre { 
+            background: #000; 
+            padding: 10px; 
+            overflow: auto;
+            max-height: 300px;
+        }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+        .info { color: #ff0; }
+    </style>
+</head>
+<body>
+    <h1>AI Chat Debug Panel</h1>
+    
+    <div class="section">
+        <h2>1. Check Components</h2>
+        <button onclick="checkComponents()">Check All Components</button>
+        <pre id="components-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>2. Test Intent Recognition</h2>
+        <input type="text" id="test-message" value="Set SMILES to c1ccccc1" style="width: 300px;">
+        <button onclick="testIntent()">Test Intent</button>
+        <pre id="intent-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>3. Test Automation Bridge</h2>
+        <button onclick="testAutomation()">Test Set SMILES</button>
+        <button onclick="testGenerate()">Test Generate</button>
+        <pre id="automation-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>4. Test Claude API</h2>
+        <button onclick="testClaude()">Test Claude Connection</button>
+        <pre id="claude-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>5. Console Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <pre id="console-log"></pre>
+    </div>
+
+    <script>
+        // Override console.log to capture output
+        const originalLog = console.log;
+        const logElement = document.getElementById('console-log');
+        let logBuffer = [];
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            logBuffer.push(`[${new Date().toLocaleTimeString()}] ${message}`);
+            if (logBuffer.length > 50) logBuffer.shift();
+            logElement.textContent = logBuffer.join('\n');
+        };
+
+        console.error = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            logBuffer.push(`[ERROR] ${message}`);
+            if (logBuffer.length > 50) logBuffer.shift();
+            logElement.textContent = logBuffer.join('\n');
+        };
+
+        function clearLog() {
+            logBuffer = [];
+            logElement.textContent = '';
+        }
+
+        async function checkComponents() {
+            const result = document.getElementById('components-result');
+            let output = '';
+
+            // Check if components exist
+            output += 'Checking components...\n\n';
+            
+            output += `window.aiAgent: ${window.aiAgent ? '✓ LOADED' : '✗ NOT LOADED'}\n`;
+            output += `window.automationBridge: ${window.automationBridge ? '✓ LOADED' : '✗ NOT LOADED'}\n`;
+            output += `window.ClaudeAPI: ${window.ClaudeAPI ? '✓ LOADED' : '✗ NOT LOADED'}\n`;
+            output += `window.MCPConnection: ${window.MCPConnection ? '✓ LOADED' : '✗ NOT LOADED'}\n`;
+            output += `window.enhancedAgent: ${window.enhancedAgent ? '✓ LOADED' : '✗ NOT LOADED'}\n`;
+            output += `window.CONFIG: ${window.CONFIG ? '✓ LOADED' : '✗ NOT LOADED'}\n\n`;
+
+            // Check Claude API key
+            const apiKey = localStorage.getItem('claude_api_key');
+            output += `Claude API Key: ${apiKey ? '✓ SET (' + apiKey.substring(0, 20) + '...)' : '✗ NOT SET'}\n\n`;
+
+            // Check config
+            if (window.CONFIG) {
+                output += 'Config URLs:\n';
+                output += `  OChem API: ${window.CONFIG.api?.ochem}\n`;
+                output += `  MCP API: ${window.CONFIG.api?.mcp}\n`;
+                output += `  Claude Enabled: ${window.CONFIG.claude?.enabled}\n`;
+            }
+
+            result.textContent = output;
+        }
+
+        async function testIntent() {
+            const result = document.getElementById('intent-result');
+            const message = document.getElementById('test-message').value;
+            
+            try {
+                if (!window.aiAgent) {
+                    // Create a minimal agent for testing
+                    window.aiAgent = new AIChemistryAgent();
+                }
+
+                result.textContent = 'Testing intent recognition...\n\n';
+                
+                const intent = window.aiAgent.analyzeIntent(message);
+                result.textContent += 'Intent: ' + JSON.stringify(intent, null, 2) + '\n\n';
+
+                // Process the message
+                const context = window.aiAgent.getCurrentContext();
+                result.textContent += 'Context: ' + JSON.stringify(context, null, 2) + '\n\n';
+
+                const response = await window.aiAgent.processMessage(message);
+                result.textContent += 'Response: ' + JSON.stringify(response, null, 2);
+
+            } catch (error) {
+                result.innerHTML = '<span class="error">ERROR:</span> ' + error.message + '\n' + error.stack;
+            }
+        }
+
+        async function testAutomation() {
+            const result = document.getElementById('automation-result');
+            
+            try {
+                if (!window.automationBridge) {
+                    window.automationBridge = new AutomationBridge();
+                }
+
+                result.textContent = 'Testing automation bridge...\n\n';
+                
+                // Test setting SMILES
+                const setResult = await window.automationBridge.executeAction('setInputSMILES', 'c1ccccc1');
+                result.textContent += 'Set SMILES Result: ' + JSON.stringify(setResult, null, 2) + '\n\n';
+
+                // Test getting current molecule
+                const getResult = await window.automationBridge.executeAction('getCurrentMolecule');
+                result.textContent += 'Get Current Molecule: ' + JSON.stringify(getResult, null, 2);
+
+            } catch (error) {
+                result.innerHTML = '<span class="error">ERROR:</span> ' + error.message + '\n' + error.stack;
+            }
+        }
+
+        async function testGenerate() {
+            const result = document.getElementById('automation-result');
+            
+            try {
+                if (!window.automationBridge) {
+                    window.automationBridge = new AutomationBridge();
+                }
+
+                result.textContent = 'Testing generation...\n\n';
+                
+                // Set parameters
+                await window.automationBridge.executeAction('setGenerationMode', 'random');
+                await window.automationBridge.executeAction('setNumMolecules', 5);
+                
+                // Generate
+                const genResult = await window.automationBridge.executeAction('generateMolecules');
+                result.textContent += 'Generation Result: ' + JSON.stringify(genResult, null, 2);
+
+            } catch (error) {
+                result.innerHTML = '<span class="error">ERROR:</span> ' + error.message + '\n' + error.stack;
+            }
+        }
+
+        async function testClaude() {
+            const result = document.getElementById('claude-result');
+            
+            try {
+                result.textContent = 'Testing Claude API...\n\n';
+                
+                const claude = new ClaudeAPI();
+                result.textContent += 'API Key: ' + (claude.apiKey ? 'SET' : 'NOT SET') + '\n\n';
+
+                if (!claude.apiKey) {
+                    result.innerHTML += '<span class="error">No API key! Set it with: localStorage.setItem("claude_api_key", "your-key")</span>';
+                    return;
+                }
+
+                const response = await claude.sendMessage('What is benzene?', {});
+                result.textContent += 'Claude Response: ' + JSON.stringify(response, null, 2);
+
+            } catch (error) {
+                result.innerHTML = '<span class="error">ERROR:</span> ' + error.message + '\n' + error.stack;
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Debug panel loaded');
+            checkComponents();
+        });
+    </script>
+</body>
+</html>

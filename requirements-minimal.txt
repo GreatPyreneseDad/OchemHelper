@@ -1,0 +1,21 @@
+# Minimal requirements for OChem Helper
+
+# Core dependencies
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Chemistry
+rdkit
+
+# API and web
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# For MCP
+aiohttp>=3.8.0
+requests>=2.31.0
+
+# Utilities
+pyyaml>=6.0
