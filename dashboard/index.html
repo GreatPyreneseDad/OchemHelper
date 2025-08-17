@@ -6,6 +6,9 @@
     <title>OChem Helper - Advanced Molecular Discovery Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.8.0/3Dmol-min.js"></script>
+    <script src="api-integration.js"></script>
+    <script src="ai-chat.js"></script>
+    <script src="automation-bridge.js"></script>
     <style>
         * {
             margin: 0;
@@ -646,6 +649,30 @@ END`;
                 viewer.setStyle({}, {stick: {radius: 0.2}, sphere: {radius: 0.4}});
                 viewer.render();
             }
+        }
+
+        // Update molecule viewer with SMILES
+        function updateMoleculeViewer(smiles) {
+            if (!viewer || !smiles) return;
+            
+            // Convert SMILES to 3D structure (simplified for demo)
+            // In production, this would call an API to get 3D coordinates
+            const pdbData = generatePDBFromSMILES(smiles);
+            
+            viewer.clear();
+            viewer.addModel(pdbData, "pdb");
+            viewer.setStyle({}, {stick: {radius: 0.15}, sphere: {radius: 0.3}});
+            viewer.zoomTo();
+            viewer.render();
+        }
+
+        // Simple SMILES to PDB converter (placeholder)
+        function generatePDBFromSMILES(smiles) {
+            // This is a placeholder - in production, use a proper converter
+            return `HETATM    1  C1  MOL     1       0.000   0.000   0.000  1.00  0.00           C
+HETATM    2  C2  MOL     1       1.500   0.000   0.000  1.00  0.00           C
+HETATM    3  C3  MOL     1       2.250   1.300   0.000  1.00  0.00           C
+END`;
         }
 
         // Initialize charts
