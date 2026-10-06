@@ -134,7 +134,7 @@ def predict_toxicity(mol: Chem.Mol) -> Dict:
         "aromatic_amine": "c1ccccc1N",
         "hydrazine": "NN",
         "azide": "[N-]=[N+]=[N-]",
-        "nitroso": "N=O",
+        "nitroso": "[NX2]=[OX1]",  # X2 so nitro (NX3+) does not also fire
         "quinone": "O=C1C=CC(=O)C=C1",
         "polycyclic_aromatic": "c1ccc2cc3ccccc3cc2c1"
     }

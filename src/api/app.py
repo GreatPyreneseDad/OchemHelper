@@ -14,29 +14,20 @@ import uuid
 import json
 import os
 
-# Try to import PyTorch, fall back to mock if not available
+# PyTorch and the SMILES VAE are optional. Generation is available ONLY when a
+# trained checkpoint exists at models/checkpoints/best_model.pt. There is no
+# mock model and no untrained fallback: an untrained VAE emits noise, and noise
+# presented as "generated molecules" is a false positive.
 try:
     import torch
+    from src.models.generative.smiles_vae import MolecularVAE, SMILESTokenizer
     TORCH_AVAILABLE = True
 except ImportError:
+    torch = None
+    MolecularVAE = SMILESTokenizer = None
     TORCH_AVAILABLE = False
-    # Create a mock torch module
-    class MockTorch:
-        def randn(*args, **kwargs):
-            import numpy as np
-            return np.random.randn(*args)
-        def randn_like(x):
-            import numpy as np
-            return np.random.randn(*x.shape)
-        def load(*args, **kwargs):
-            return {}
-    torch = MockTorch()
 
-# Import our models - use mock if requested or torch not available
-if os.environ.get('USE_MOCK_VAE') or not TORCH_AVAILABLE:
-    from src.models.generative.mock_vae import MolecularVAE, SMILESTokenizer
-else:
-    from src.models.generative.smiles_vae import MolecularVAE, SMILESTokenizer
+VAE_CHECKPOINT = Path(os.environ.get("OCHEM_VAE_CHECKPOINT", "models/checkpoints/best_model.pt"))
 
 from src.core.molecular_graph import MolecularGraph
 from src.api.structure_converter import converter
@@ -133,52 +124,34 @@ class StructureInfoResponse(BaseModel):
 # Startup event to load models
 @app.on_event("startup")
 async def load_models():
-    """Load pretrained models on startup."""
+    """Load a trained VAE if, and only if, a checkpoint exists."""
     global MODELS
-    
-    # If using mock VAE or torch not available, use mock model
-    if os.environ.get('USE_MOCK_VAE') or not TORCH_AVAILABLE:
-        tokenizer = SMILESTokenizer()
-        MODELS['vae'] = MolecularVAE(vocab_size=tokenizer.vocab_size)
-        logger.info("Initialized mock VAE model (PyTorch not available or USE_MOCK_VAE set)")
+    if not TORCH_AVAILABLE:
+        logger.info("PyTorch not installed: /api/generate disabled; RDKit endpoints active")
         return
-    
-    # Check for VAE checkpoint
-    vae_path = Path("models/checkpoints/best_model.pt")
-    if vae_path.exists():
-        try:
-            checkpoint = torch.load(vae_path, map_location="cpu")
-            config = checkpoint['model_config']
-            
-            model = MolecularVAE(
-                vocab_size=config['vocab_size'],
-                embedding_dim=config.get('embedding_dim', 128),
-                hidden_dim=config['hidden_dim'],
-                latent_dim=config['latent_dim'],
-                num_layers=config.get('num_layers', 2),
-                max_length=config['max_length'],
-                beta=config.get('beta', 1.0)
-            )
-            
-            model.load_state_dict(checkpoint['model_state_dict'])
-            model.eval()
-            
-            MODELS['vae'] = model
-            logger.info("Loaded VAE model")
-        except Exception as e:
-            logger.error(f"Failed to load VAE: {e}")
-            # Fall back to mock
-            tokenizer = SMILESTokenizer()
-            MODELS['vae'] = MolecularVAE(vocab_size=tokenizer.vocab_size)
-            logger.info("Initialized mock VAE model (failed to load real model)")
-    else:
-        # Initialize default model
-        tokenizer = SMILESTokenizer()
-        MODELS['vae'] = MolecularVAE(vocab_size=tokenizer.vocab_size)
-        logger.info("Initialized default VAE model")
+    if not VAE_CHECKPOINT.exists():
+        logger.info("No VAE checkpoint at %s: /api/generate disabled; RDKit endpoints active", VAE_CHECKPOINT)
+        return
+    try:
+        checkpoint = torch.load(VAE_CHECKPOINT, map_location="cpu")
+        config = checkpoint['model_config']
+        model = MolecularVAE(
+            vocab_size=config['vocab_size'],
+            embedding_dim=config.get('embedding_dim', 128),
+            hidden_dim=config['hidden_dim'],
+            latent_dim=config['latent_dim'],
+            num_layers=config.get('num_layers', 2),
+            max_length=config['max_length'],
+            beta=config.get('beta', 1.0),
+        )
+        model.load_state_dict(checkpoint['model_state_dict'])
+        model.eval()
+        MODELS['vae'] = model
+        logger.info("Loaded trained VAE from %s", VAE_CHECKPOINT)
+    except Exception as e:  # a half-loaded model is worse than none
+        logger.error("Failed to load VAE (%s): /api/generate disabled", e)
 
 
-# API Endpoints
 @app.get("/", response_model=HealthResponse)
 async def root():
     """Root endpoint."""
@@ -194,7 +167,12 @@ async def generate_molecules(request: GenerateRequest, background_tasks: Backgro
     """Generate new molecules with desired properties."""
     try:
         if 'vae' not in MODELS:
-            raise HTTPException(status_code=503, detail="VAE model not loaded")
+            raise HTTPException(
+                status_code=503,
+                detail="No trained VAE checkpoint. Generation is disabled until one exists at "
+                       f"{VAE_CHECKPOINT} (see scripts/train_vae.py). Property prediction, "
+                       "functional-group identification and retrosynthesis do not need it.",
+            )
         
         model = MODELS['vae']
         job_id = str(uuid.uuid4())
@@ -296,7 +274,12 @@ async def optimize_molecule(request: OptimizeRequest):
     """Optimize a molecule for a given objective."""
     try:
         if 'vae' not in MODELS:
-            raise HTTPException(status_code=503, detail="VAE model not loaded")
+            raise HTTPException(
+                status_code=503,
+                detail="No trained VAE checkpoint. Generation is disabled until one exists at "
+                       f"{VAE_CHECKPOINT} (see scripts/train_vae.py). Property prediction, "
+                       "functional-group identification and retrosynthesis do not need it.",
+            )
         
         model = MODELS['vae']
         

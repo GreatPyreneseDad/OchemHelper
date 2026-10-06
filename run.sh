@@ -14,7 +14,6 @@ sleep 1
 
 # Set up environment
 export PYTHONPATH=/Users/chris/ochem-helper:$PYTHONPATH
-export USE_MOCK_VAE=1  # Use mock VAE to avoid PyTorch issues
 
 # Activate virtual environment
 source venv/bin/activate

@@ -35,7 +35,6 @@ fi
 
 if ! check_module "torch"; then
     echo "⚠️  PyTorch not found - using mock VAE model"
-    export USE_MOCK_VAE=1
 fi
 
 # Install missing dependencies

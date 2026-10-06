@@ -1,6 +1,12 @@
 """Core functionality for molecular representation and processing with advanced ML."""
 
-from .molecular_graph import MolecularGraph
+from . import functional_groups  # RDKit only; always importable
+
+try:  # torch-backed graph featuriser — optional
+    from .molecular_graph import MolecularGraph
+except ImportError:  # pragma: no cover
+    MolecularGraph = None  # type: ignore
+
 from .hyperposition_tokenizer import (
     HyperMolecularProcessor,
     MolecularHyperToken,
@@ -182,6 +188,7 @@ def canonicalize_smiles(smiles: str) -> str:
 from .config import Config, ConfigLoader, load_config, get_config, update_config
 
 __all__ = [
+    "functional_groups",
     "MolecularGraph",
     "MolecularDescriptors",
     "MoleculeValidator", 
