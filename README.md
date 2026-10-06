@@ -1,181 +1,109 @@
-# OChem Helper 🧪🤖
+# OChem Helper
 
-An advanced neural network system for molecular discovery and organic chemistry simulations.
+A small, honest organic-chemistry helper built on RDKit. It names the
+functional groups in a molecule, checks drug-likeness rules, and flags
+structural alerts — the things a TA actually checks when marking a problem set.
 
-## Features
+It is **not** a neural network. An earlier version of this README described
+a VAE / GNN molecular-discovery system. That code is still in the tree, but it
+was never trained and never worked; the "generated molecules" it produced were
+random fragments from a template list. That is gone. What remains is
+deterministic, inspectable, and runs in under a second with no model weights.
 
-- 🔬 **Molecular Generation**: Design novel molecules with desired properties using VAE
-- 📊 **Property Prediction**: Predict chemical and biological properties
-- 🎯 **Molecule Optimization**: Optimize molecules for specific objectives
-- 🧬 **Graph Neural Networks**: Molecular representation learning
-- 📈 **ADMET Prediction**: Assess drug-like properties
-- 🚀 **REST API**: Production-ready API for all functionalities
-
-## Quick Start
-
-### Installation
+## Install
 
 ```bash
-# Clone repository
 git clone https://github.com/GreatPyreneseDad/OchemHelper.git
-cd ochem-helper
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-pip install -e .
+cd OchemHelper
+pip install -e .          # RDKit, numpy, scikit-learn. No PyTorch.
 ```
 
-### Download & Prepare Data
+## Use
 
 ```bash
-# Download all datasets (ChEMBL, ZINC, PubChem, QM9)
-python scripts/download_data.py --all
+# Name the functional groups (most specific first; aspirin is an acid + ester, not a ketone + alcohol)
+ochem groups "CC(=O)Oc1ccccc1C(=O)O"
+#   carboxylic acid
+#   ester
+#   benzene ring
 
-# Or download specific dataset
-python scripts/download_data.py --dataset chembl
+# With the one-line note a TA would say, and the atom indices so you can check the drawing
+ochem groups --notes --atoms "CC(=O)Oc1ccccc1C(=O)O"
+
+# Lipinski / Veber / Egan, descriptors, and toxicity structural alerts
+ochem props "Nc1ccccc1[N+](=O)[O-]"
+#   MW 138.13  logP 1.18  TPSA 69.16  HBD 1  HBA 3  rotB 1
+#   Lipinski violations: 0   Veber: pass   Egan: pass   → oral bioavailability High (1)
+#   structural alerts: nitroaromatic, aromatic_amine   mutagenicity risk: High
+
+# Batch: one SMILES per line (a trailing name is ignored), or pipe on stdin
+ochem groups --file problem_set.txt
+ochem props --json "CCO" "CC(=O)O" > out.json
 ```
 
-### Train the VAE Model
-
-```bash
-# Train on combined dataset
-python scripts/train_vae.py \
-    --data data/processed/combined_training.csv \
-    --epochs 100 \
-    --batch-size 128 \
-    --latent-dim 128 \
-    --hidden-dim 256
-
-# Monitor training with tensorboard or wandb
-wandb login  # First time only
-python scripts/train_vae.py --data data/processed/combined_training.csv --wandb-project molecular-vae
-```
-
-### Generate Molecules
-
-```bash
-# Generate random molecules
-python scripts/generate_molecules.py \
-    --checkpoint models/checkpoints/best_model.pt \
-    --mode random \
-    --n-molecules 100 \
-    --output generated.csv \
-    --visualize
-
-# Generate molecules similar to a reference
-python scripts/generate_molecules.py \
-    --checkpoint models/checkpoints/best_model.pt \
-    --mode similar \
-    --reference "CC(=O)OC1=CC=CC=C1C(=O)O" \
-    --n-molecules 50
-
-# Generate with target properties
-python scripts/generate_molecules.py \
-    --checkpoint models/checkpoints/best_model.pt \
-    --mode properties \
-    --properties '{"MW": 350, "logP": 2.5}' \
-    --n-molecules 100
-```
-
-### Basic Usage in Python
+From Python:
 
 ```python
-from src.models.generative.smiles_vae import MolecularVAE, SMILESTokenizer
-from src.core.molecular_graph import MolecularGraph
-import torch
+from src.core.functional_groups import identify, summarize
 
-# Load trained model
-checkpoint = torch.load('models/checkpoints/best_model.pt')
-config = checkpoint['model_config']
+summarize("OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O")
+# 'hemiacetal, primary alcohol, 3× secondary alcohol'
 
-model = MolecularVAE(
-    vocab_size=config['vocab_size'],
-    hidden_dim=config['hidden_dim'],
-    latent_dim=config['latent_dim'],
-    max_length=config['max_length']
-)
-model.load_state_dict(checkpoint['model_state_dict'])
-model.eval()
-
-# Generate molecules
-molecules = model.generate(n_samples=100)
-print(f"Generated {len(molecules)} valid molecules")
-
-# Molecular interpolation
-aspirin = "CC(=O)OC1=CC=CC=C1C(=O)O"
-ibuprofen = "CC(C)CC1=CC=C(C=C1)C(C)C"
-interpolated = model.interpolate(aspirin, ibuprofen, n_steps=10)
-
-# Convert to molecular graphs
-for smiles in molecules[:5]:
-    mol_graph = MolecularGraph.from_smiles(smiles)
-    graph_data = mol_graph.to_graph()
-    print(f"Graph with {mol_graph.num_atoms} atoms, {mol_graph.num_bonds} bonds")
+for g in identify("CC(C)(C)OC(=O)NCC(=O)O"):
+    print(g.name, g.count, g.atoms)
+# carboxylic acid 1 [(9, 10, 11)]
+# carbamate 1 [(7, 5, 6, 4, 1)]
 ```
 
-## Documentation
+### How group identification works
 
-Full documentation available at [https://ochem-helper.readthedocs.io](https://ochem-helper.readthedocs.io)
+`src/core/functional_groups.py` is an ordered table of ~45 SMARTS patterns,
+most specific first. Each pattern names the atoms it *owns* (the carbonyl
+carbon of an ester, the two oxygens of a hemiacetal). Once a more specific
+group has claimed an atom, less specific patterns skip it — so a carboxylic
+acid is never also reported as a ketone and an alcohol, and the ring oxygen of
+glucose is part of the hemiacetal, not an ether. Alkenes and aromatic rings
+claim nothing, because a C=C inside an enone is still an alkene.
 
-## API Usage
+Every hit carries its atom indices. If the tool is wrong, you can see exactly
+where, and fix the SMARTS. Tests in `tests/unit/test_functional_groups.py`
+pin the answers for ~40 textbook molecules (aspirin, paracetamol, caffeine,
+glucose, penicillin G, Boc-glycine, cysteine …).
 
-Start the API server:
+## What else is in the tree
+
+| path | status |
+|---|---|
+| `src/core/functional_groups.py`, `src/cli.py` | **works, tested** |
+| `mcp/tools/predict_properties.py` | works — Lipinski/Veber/Egan, SMARTS toxicity alerts, descriptor-based ADMET heuristics. Rules, not models. |
+| `mcp/tools/suggest_synthesis.py` | **broken** — template-based retrosynthesis; several reaction SMARTS do not parse and one RDKit call does not exist. Next thing to fix. |
+| `mcp/server/*` | MCP server exposing the tools; not re-verified since the cleanup |
+| `src/models/generative/smiles_vae.py` | untrained VAE scaffold. `/api/generate` returns 503 until a checkpoint exists at `models/checkpoints/best_model.pt`. No mock fallback. |
+| `src/core/hyperposition_tokenizer.py` | experimental molecular tokenizer; not used by the CLI |
+| `dashboard/` | browser dashboard from the original build; not re-verified |
+| `scripts/train_vae.py`, `scripts/download_data.py` | would train the VAE if you had the data and the patience; never run |
+
+## Running the tests
 
 ```bash
-ochem-api
+pip install pytest
+pytest -q tests/unit/test_functional_groups.py tests/unit/test_cli.py
 ```
 
-Generate molecules via API:
+The older tests under `tests/unit/test_vae.py`, `test_mcp.py`, `test_api.py`
+hard-code a path on the original author's laptop and import torch; they are
+left in place but are not expected to pass.
 
-```bash
-curl -X POST "http://localhost:8000/api/generate" \
-  -H "Content-Type: application/json" \
-  -d '{"n_molecules": 10, "target_properties": {"logP": 2.5}}'
-```
+## Roadmap (chipping at it)
 
-## Container Usage (Podman)
-
-Build and run with Podman:
-
-```bash
-# Build container
-make podman-build
-
-# Run container
-make podman-run
-
-# Or use podman-compose
-cd containers
-podman-compose up
-```
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](docs/contributing.md) for guidelines.
-
-## Citation
-
-If you use OChem Helper in your research, please cite:
-
-```bibtex
-@software{ochem_helper,
-  title = {OChem Helper: Neural Networks for Molecular Discovery},
-  author = {OChem Helper Contributors},
-  year = {2024},
-  url = {https://github.com/GreatPyreneseDad/OchemHelper}
-}
-```
+1. Fix `suggest_synthesis.py` so retrosynthesis actually runs, with tests on
+   real textbook disconnections (ester → acid + alcohol, amide → acid + amine,
+   Grignard, aldol).
+2. Add imide, lactone/lactam labelling, aryl ether, conjugated system detection.
+3. `ochem name` — IUPAC-ish name for simple molecules, or at least the parent chain.
+4. `ochem quiz` — show a structure, hide the answer, grade the response. The
+   thing it was always for.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- RDKit for cheminformatics
-- PyTorch Geometric for graph neural networks
-- DeepChem for chemical machine learning
+MIT.

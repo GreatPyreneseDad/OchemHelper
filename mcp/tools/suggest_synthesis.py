@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Optional, Tuple, Set
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdMolDescriptors, rdFMCS
+from rdkit.Chem import AllChem, rdMolDescriptors, rdFMCS, GraphDescriptors
 import numpy as np
 from collections import defaultdict
 import logging
@@ -655,7 +655,7 @@ def calculate_molecular_complexity(mol: Chem.Mol) -> float:
         return 0
     
     # Bertz complexity
-    complexity = rdMolDescriptors.BertzCT(mol)
+    complexity = GraphDescriptors.BertzCT(mol)
     
     # Normalize to 0-100 scale
     return min(complexity / 10, 100)
